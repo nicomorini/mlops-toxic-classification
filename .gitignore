@@ -24,3 +24,4 @@ env/
 *.parquet
 *.pkl
 *.joblib
+*.json
