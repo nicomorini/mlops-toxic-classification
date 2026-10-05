@@ -25,3 +25,9 @@ env/
 *.pkl
 *.joblib
 *.json
+
+# --- Terraform ---
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
