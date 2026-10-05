@@ -1,0 +1,54 @@
+name: Continuous Integration
+
+# Trigger the workflow on push or pull request events on the main branch
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test-and-lint:
+    # Use the latest Ubuntu environment for the CI runner
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Check out the repository code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Set up Python environment
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"  # Enables pip caching to speed up workflows
+
+      # 3. Install dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # Install main requirements
+          pip install -r requirements.txt
+          # Install testing and linting tools explicitly
+          pip install httpx ruff pytest
+
+      # 4. Check code quality with Ruff
+      - name: Run Ruff Linter and Formatter check
+        run: |
+          # Fails the CI if there are linting errors
+          ruff check .
+          # Fails the CI if the code is not formatted properly
+          ruff format --check .
+
+      # 5. Generate a fresh baseline model for testing
+      - name: Train baseline model
+        run: |
+          # Since actual models are tracked by DVC (and not in Git),
+          # we quickly train a dummy model so the API lifespan doesn't crash during tests.
+          python src/train.py
+
+      # 6. Run automated tests
+      - name: Run Pytest
+        run: |
+          pytest tests/
