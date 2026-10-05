@@ -1,4 +1,4 @@
-name: Continuous Integration
+name: Continuous Integration and Deployment
 
 # Trigger the workflow on push or pull request events on the main branch
 on:
@@ -9,46 +9,101 @@ on:
 
 jobs:
   test-and-lint:
-    # Use the latest Ubuntu environment for the CI runner
     runs-on: ubuntu-latest
-
     steps:
-      # 1. Check out the repository code
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. Set up Python environment
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: "pip"  # Enables pip caching to speed up workflows
+          cache: "pip"
 
-      # 3. Install dependencies
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          # Install main requirements
           pip install -r requirements.txt
-          # Install testing and linting tools explicitly
           pip install httpx ruff pytest
 
-      # 4. Check code quality with Ruff
       - name: Run Ruff Linter and Formatter check
         run: |
-          # Fails the CI if there are linting errors
           ruff check .
-          # Fails the CI if the code is not formatted properly
           ruff format --check .
 
-      # 5. Generate a fresh baseline model for testing
       - name: Train baseline model
-        run: |
-          # Since actual models are tracked by DVC (and not in Git),
-          # we quickly train a dummy model so the API lifespan doesn't crash during tests.
-          python src/train.py
+        run: python src/train.py
 
-      # 6. Run automated tests
       - name: Run Pytest
+        run: pytest tests/
+
+  build-and-deploy:
+    # Wait for tests to pass before deploying
+    needs: test-and-lint
+    # Only deploy when pushing to main (do not deploy pull requests from other branches)
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Note: Since our DVC remote is currently just a local folder on your PC, 
+      # GitHub cannot pull the real model. We generate a fresh baseline model here 
+      # so the Docker image has a model.joblib to copy into the container.
+      - name: Set up Python to train dummy model
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install requirements for training
+        run: pip install -r requirements.txt
+      - name: Train baseline model
+        run: python src/train.py
+
+      # --- Google Cloud Authentication & Setup ---
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
         run: |
-          pytest tests/
+          gcloud auth configure-docker europe-west1-docker.pkg.dev
+
+      # --- Docker Build & Push ---
+      - name: Build and Push Docker Image
+        env:
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          REGION: europe-west1
+          REPO: mlops-repo
+          IMAGE: mlops-toxic-api
+          TAG: ${{ github.sha }}
+        run: |
+          # Construct the full image URL required by Artifact Registry
+          IMAGE_URL="$REGION-docker.pkg.dev/$PROJECT_ID/$REPO/$IMAGE:$TAG"
+          
+          # Build the Docker image
+          docker build -t $IMAGE_URL .
+          
+          # Push the image to GCP
+          docker push $IMAGE_URL
+
+      # --- Cloud Run Deploy ---
+      - name: Deploy to Cloud Run
+        env:
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          REGION: europe-west1
+          REPO: mlops-repo
+          IMAGE: mlops-toxic-api
+          TAG: ${{ github.sha }}
+        run: |
+          IMAGE_URL="$REGION-docker.pkg.dev/$PROJECT_ID/$REPO/$IMAGE:$TAG"
+          
+          gcloud run deploy $IMAGE \
+            --image $IMAGE_URL \
+            --region $REGION \
+            --project $PROJECT_ID \
+            --allow-unauthenticated
