@@ -4,6 +4,7 @@ from pathlib import Path
 import joblib
 import mlflow
 import mlflow.sklearn
+from mlflow.tracking import MlflowClient
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, f1_score
@@ -38,15 +39,13 @@ def get_dummy_data() -> tuple[list[str], list[int]]:
 
 
 def train_baseline_model() -> None:
-    """Create, train, evaluate and log the baseline model using MLflow."""
+    """Create, train, evaluate, and register the model into MLflow Production."""
 
-    # 1. Fetch and split Data
     X, y = get_dummy_data()
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.3, random_state=42
     )
 
-    # 2. Define Hyperparameters
     params = {
         "tfidf__max_features": 1000,
         "clf__C": 1.0,
@@ -54,17 +53,12 @@ def train_baseline_model() -> None:
         "clf__random_state": 42,
     }
 
-    # 3. Initialize MLflow Experiment
-    # This creates a folder named 'mlruns' locally to store the tracking data
     mlflow.set_experiment("Toxic_Classification_Baseline")
 
     with mlflow.start_run():
         logger.info("MLflow run started.")
-
-        # Log Hyperparameters to MLflow
         mlflow.log_params(params)
 
-        # 4. Define and Train the Pipeline
         logger.info("Initializing and training the Pipeline...")
         pipeline = Pipeline(
             [
@@ -81,27 +75,40 @@ def train_baseline_model() -> None:
         )
         pipeline.fit(X_train, y_train)
 
-        # 5. Evaluate the model
         logger.info("Evaluating the model...")
         predictions = pipeline.predict(X_test)
         acc = accuracy_score(y_test, predictions)
         f1 = f1_score(y_test, predictions, average="weighted")
 
-        # Log Metrics to MLflow
         mlflow.log_metric("accuracy", acc)
         mlflow.log_metric("f1_score", f1)
         logger.info(f"Metrics - Accuracy: {acc:.2f}, F1: {f1:.2f}")
 
-        # 6. Log the model inside MLflow
-        mlflow.sklearn.log_model(pipeline, artifact_path="model")
-        logger.info("Model logged to MLflow.")
+        # 1. Log AND Register the model in one step
+        model_name = "ToxicClassifier"
+        model_info = mlflow.sklearn.log_model(
+            sk_model=pipeline, artifact_path="model", registered_model_name=model_name
+        )
 
-        # 7. (Fallback) Save the model locally for the FastAPI app and CI/CD
+        model_version = model_info.registered_model_version
+        logger.info(f"Model registered as '{model_name}', Version: {model_version}")
+
+        # 2. Promote the model to "Production" stage
+        client = MlflowClient()
+        client.transition_model_version_stage(
+            name=model_name,
+            version=model_version,
+            stage="Production",
+            archive_existing_versions=True,  # Automatically demote the old production model
+        )
+        logger.info(f"Version {model_version} promoted to 'Production' stage.")
+
+        # 3. (Fallback) Save locally for FastAPI
         models_dir = Path("models")
         models_dir.mkdir(parents=True, exist_ok=True)
         model_path = models_dir / "model.joblib"
         joblib.dump(pipeline, model_path)
-        logger.info(f"Model successfully saved locally to: {model_path}")
+        logger.info(f"Model saved locally to: {model_path}")
 
 
 if __name__ == "__main__":
