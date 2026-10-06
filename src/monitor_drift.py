@@ -93,10 +93,13 @@ def monitor_data_drift() -> None:
             "🚨 DATA DRIFT DETECTED! Production data distribution has changed."
         )
         logger.warning("Action required: Trigger Continuous Training pipeline (CI/CT).")
+        # Exit with error code 1 to fail the GitHub Actions workflow and trigger an email alert
+        sys.exit(1)
     else:
         logger.info(
             "✅ No data drift detected. The model is still operating in a familiar environment."
         )
+        sys.exit(0)
 
 
 if __name__ == "__main__":
