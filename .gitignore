@@ -31,3 +31,6 @@ env/
 *.tfstate
 *.tfstate.*
 .terraform.lock.hcl
+
+# --- MLflow ---
+mlruns/
