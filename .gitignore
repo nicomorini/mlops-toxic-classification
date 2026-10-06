@@ -4,7 +4,7 @@ __pycache__/
 *$py.class
 .pytest_cache/
 
-# --- Ambienti Virtuali ---
+# --- Virtual Environments ---
 .venv/
 venv/
 env/
@@ -17,7 +17,7 @@ env/
 # --- Jupyter Notebooks ---
 .ipynb_checkpoints/
 
-# --- Dati e Modelli (Saranno gestiti da DVC) ---
+# --- Data & Models (Will be managed by DVC) ---
 /data/
 /models/
 *.csv
@@ -38,3 +38,7 @@ mlruns/
 # --- Databases ---
 *.db
 *.sqlite
+
+# --- Production Logs & Data ---
+data/
+*.csv

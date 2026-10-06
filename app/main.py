@@ -1,11 +1,13 @@
+import csv
 import logging
 import os
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 
 import joblib
 import mlflow.sklearn
-from fastapi import FastAPI, HTTPException
+from fastapi import BackgroundTasks, FastAPI, HTTPException
 from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel, Field
 
@@ -80,6 +82,28 @@ app = FastAPI(
 Instrumentator().instrument(app).expose(app)
 
 
+def save_prediction_log(text: str, is_toxic: bool, probability: float) -> None:
+    """
+    Background task to append the user input and prediction to a local CSV.
+    This acts as our production database for future Drift Detection.
+    """
+    log_dir = Path("data")
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_file = log_dir / "production_logs.csv"
+
+    file_exists = log_file.exists()
+
+    with open(log_file, mode="a", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        # Write headers if the file is new
+        if not file_exists:
+            writer.writerow(["timestamp", "text", "is_toxic", "probability"])
+
+        writer.writerow(
+            [datetime.now(timezone.utc).isoformat(), text, is_toxic, probability]
+        )
+
+
 class PredictRequest(BaseModel):
     """Schema for the incoming prediction request."""
 
@@ -94,7 +118,7 @@ class PredictResponse(BaseModel):
 
 
 @app.post("/predict", response_model=PredictResponse)
-async def predict(request: PredictRequest):
+async def predict(request: PredictRequest, background_tasks: BackgroundTasks):
     """Endpoint to classify text."""
     model = ml_models.get("toxic_classifier")
     if model is None:
@@ -104,10 +128,14 @@ async def predict(request: PredictRequest):
         prediction = model.predict([request.text])[0]
         probabilities = model.predict_proba([request.text])[0]
         toxic_prob = float(probabilities[1])
+        is_toxic_bool = bool(prediction == 1)
 
-        return PredictResponse(
-            is_toxic=bool(prediction == 1), toxicity_probability=toxic_prob
+        # Trigger the asynchronous save operation
+        background_tasks.add_task(
+            save_prediction_log, request.text, is_toxic_bool, toxic_prob
         )
+
+        return PredictResponse(is_toxic=is_toxic_bool, toxicity_probability=toxic_prob)
     except Exception as e:  # noqa: BLE001
         logger.error(f"Error during prediction: {e!s}")
         raise HTTPException(
