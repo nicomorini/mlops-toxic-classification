@@ -42,3 +42,6 @@ mlruns/
 # --- Production Logs & Data ---
 data/
 *.csv
+
+# --- Evidently Reports ---
+reports/
