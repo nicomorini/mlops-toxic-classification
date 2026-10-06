@@ -1,0 +1,48 @@
+name: Continuous Training Pipeline
+
+on:
+  # Manual trigger for testing
+  workflow_dispatch:
+  
+  # In production, you uncomment this to trigger automatically if drift detection succeeds/fails:
+  # workflow_run:
+  #   workflows: ["Nightly Data Drift Detection"]
+  #   types:
+  #     - completed
+
+jobs:
+  retrain-model:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Download Latest Dataset
+        run: |
+          echo "Simulating fetching the latest annotated data from DVC or Cloud Storage (e.g., S3/GCS)..."
+          # e.g., dvc pull data/latest_dataset.csv
+          # Our current train.py generates dummy data internally, so it works directly.
+
+      - name: Train and Register New Model to MLflow
+        # If MLflow is hosted in the cloud, we MUST inject credentials here
+        env:
+          # MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+          # MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+          # MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+          PYTHONPATH: .
+        run: |
+          echo "Starting the training process..."
+          python src/train.py
+          echo "Model successfully trained and registered to MLflow."
