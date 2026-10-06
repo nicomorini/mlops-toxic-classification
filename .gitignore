@@ -34,3 +34,7 @@ env/
 
 # --- MLflow ---
 mlruns/
+
+# --- Databases ---
+*.db
+*.sqlite
