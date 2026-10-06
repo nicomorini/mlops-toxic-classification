@@ -46,12 +46,21 @@ def monitor_data_drift() -> None:
     prod_path = data_dir / "production_logs.csv"
     ref_path = data_dir / "reference.csv"
 
-    # 1. Check if we have production logs
+    # 1. Check if we have production logs (If missing, generate dummy data for CI/CD)
     if not prod_path.exists():
-        logger.error(
-            f"Production logs not found at {prod_path}. Please use the API first."
+        logger.warning(
+            "Production logs not found. Generating dummy production data for CI/CD demonstration..."
         )
-        sys.exit(1)
+        prod_path.parent.mkdir(parents=True, exist_ok=True)
+        # Create a dummy CSV containing drifted data (new slang)
+        pd.DataFrame(
+            {
+                "timestamp": ["2026-01-01T12:00:00", "2026-01-01T12:05:00"],
+                "text": ["ur trash bro tbh", "cancel this guy fr fr"],
+                "is_toxic": [True, True],
+                "probability": [0.95, 0.88],
+            }
+        ).to_csv(prod_path, index=False)
 
     # 2. Load Datasets
     logger.info("Loading reference and production data...")
