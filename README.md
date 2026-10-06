@@ -11,11 +11,11 @@
 ## 📌 Project Overview
 This repository contains a complete, production-ready **MLOps architecture** for a Machine Learning model that classifies text as toxic or non-toxic. 
 
-It is not just a Jupyter Notebook; it is a fully automated system that handles the entire ML lifecycle: from code versioning and model tracking to infrastructure provisioning, continuous deployment (CI/CD), real-time monitoring, and automated continuous training (CT) upon data drift detection.
+It is a fully automated system that handles the entire ML lifecycle: from code versioning and model tracking to infrastructure provisioning, continuous deployment (CI/CD), real-time monitoring, and automated continuous training (CT) upon data drift detection.
 
 ## 🏗️ Architecture & Workflow
 
-The system is designed following industry best practices for MLOps, ensuring scalability, reproducibility, and high availability.
+The system is designed following best practices for MLOps, ensuring scalability, reproducibility, and high availability.
 
 1. **Development & Tracking:** Code is formatted with `Ruff`, tested with `Pytest`, and ML experiments are tracked using **MLflow**.
 2. **Infrastructure as Code (IaC):** **Terraform** automatically provisions a Docker registry and a Serverless environment on **Google Cloud Platform (GCP)**.
