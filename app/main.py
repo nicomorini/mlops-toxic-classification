@@ -44,7 +44,7 @@ async def lifespan(app: FastAPI):
         ml_models["toxic_classifier"] = mlflow.sklearn.load_model(model_uri)
         logger.info("Model loaded successfully from MLflow Registry.")
 
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.warning(f"MLflow load failed: {e!s}. Initiating fallback mechanism...")
 
         # 2. Fallback: Load from local file
