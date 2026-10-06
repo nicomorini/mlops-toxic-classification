@@ -53,6 +53,10 @@ def train_baseline_model() -> None:
         "clf__random_state": 42,
     }
 
+    # Initialize MLflow Experiment using SQLite database
+    mlflow.set_tracking_uri("sqlite:///mlflow.db")
+    mlflow.set_experiment("Toxic_Classification_Baseline")
+
     mlflow.set_experiment("Toxic_Classification_Baseline")
 
     with mlflow.start_run():
