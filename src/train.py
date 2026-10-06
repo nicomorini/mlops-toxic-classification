@@ -97,15 +97,15 @@ def train_baseline_model() -> None:
         model_version = model_info.registered_model_version
         logger.info(f"Model registered as '{model_name}', Version: {model_version}")
 
-        # 2. Promote the model to "Production" stage
+        # 2. Register the model as "Staging" (waiting for evaluation)
         client = MlflowClient()
         client.transition_model_version_stage(
             name=model_name,
             version=model_version,
-            stage="Production",
-            archive_existing_versions=True,  # Automatically demote the old production model
+            stage="Staging",
+            archive_existing_versions=False,
         )
-        logger.info(f"Version {model_version} promoted to 'Production' stage.")
+        logger.info(f"Version {model_version} placed in 'Staging' stage.")
 
         # 3. (Fallback) Save locally for FastAPI
         models_dir = Path("models")

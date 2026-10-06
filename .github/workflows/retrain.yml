@@ -36,13 +36,16 @@ jobs:
           # Our current train.py generates dummy data internally, so it works directly.
 
       - name: Train and Register New Model to MLflow
-        # If MLflow is hosted in the cloud, we MUST inject credentials here
         env:
-          # MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
-          # MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
-          # MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
           PYTHONPATH: .
         run: |
           echo "Starting the training process..."
           python src/train.py
-          echo "Model successfully trained and registered to MLflow."
+          echo "Model successfully trained and registered to Staging in MLflow."
+
+      - name: Evaluate and Promote Model
+        env:
+          PYTHONPATH: .
+        run: |
+          echo "Running model evaluation..."
+          python src/evaluate_and_promote.py
