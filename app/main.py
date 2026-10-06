@@ -6,6 +6,7 @@ from pathlib import Path
 import joblib
 import mlflow.sklearn
 from fastapi import FastAPI, HTTPException
+from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel, Field
 
 # Force MLflow to allow local file system storage
@@ -74,6 +75,9 @@ app = FastAPI(
     version="0.2.0",
     lifespan=lifespan,
 )
+
+# --- Observability: Prometheus Instrumentation ---
+Instrumentator().instrument(app).expose(app)
 
 
 class PredictRequest(BaseModel):
